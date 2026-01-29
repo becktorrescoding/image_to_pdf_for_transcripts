@@ -4,7 +4,7 @@ import pytesseract
 from pathlib import Path
 from PIL import Image
 
-# TODO add output folder path for network drive (use double forward slash [//] in file path)
+# TODO add output folder path here
 output_pdf = Path("")
 
 def convert_tiff(tiff):
@@ -99,7 +99,7 @@ def search_images(matched_files, search_for):
 
 
 if __name__ == "__main__":
-    # TODO add input folder path for network drive (use double forward slash [//] in file path)
+    # TODO add input folder path here
     input_tiff = Path()
     name = input("Enter first and last name: ")
     search_folders(input_tiff, name)
