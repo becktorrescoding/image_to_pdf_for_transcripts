@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Black">
+    <option name="sdkName" value="Python 3.13 (TIFF_File_Lookup)" />
+  </component>
+  <component name="GithubDefaultAccount">
+    <option name="defaultAccountId" value="0a15fbdb-15d1-48e7-8c86-472f930674f8" />
+  </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.13 (TIFF_File_Lookup)" project-jdk-type="Python SDK">
+    <output url="file://$PROJECT_DIR$/out" />
+  </component>
+</project>
