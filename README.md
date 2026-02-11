@@ -64,7 +64,7 @@ Replace with the folder containing your documents to search.
 Run the script from the command line:
 
 ```bash
-python Main.py
+python image_to_pdf.py
 ```
 
 ### Search Process
