@@ -46,18 +46,16 @@ Before running the script, you need to set two important paths:
 ### 1. Output PDF Path
 Edit line 8 in `Main.py`:
 ```python
-output_pdf = Path("path/to/output/document.pdf")
+output_path = Path(r"path/to/output/")
 ```
 Replace with your desired output location for processed PDFs.
 
 ### 2. Input Folder Path
-Edit line 96 in `Main.py`:
+Edit line 9 in `Main.py`:
 ```python
-input_tiff = Path("path/to/input/folder")
+input_path = Path(r"path/to/input/folder")
 ```
 Replace with the folder containing your documents to search.
-
-**Note**: For network drives, use forward slashes in the path (e.g., `//server/share/folder`).
 
 ## Usage
 
@@ -78,9 +76,9 @@ python image_to_pdf.py
    - If one match is found, it's automatically converted to PDF
    - If multiple matches are found, you'll be prompted for an admission date
 
-3. **Date Filtering**: If multiple matches exist, enter the admission date
+3. **Date Filtering**: If multiple matches exist, enter the admission year (ex. below for 1990) 
    ```
-   Enter Date of Admission: 01/15/2024
+   Enter Year of Admission (YY): 90
    ```
 
 4. **Fallback Search**: If no exact match is found, the script attempts partial matching
