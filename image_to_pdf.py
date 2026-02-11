@@ -4,14 +4,18 @@ import pytesseract
 from pathlib import Path
 from PIL import Image
 
-# TODO add output folder path here
-output_path = Path("")
-input_path = Path("")
+# TODO add input & output folder paths here
+output_path = Path(r"")
+input_path = Path(r"")
 
 def convert_tiff(tiff):
     if tiff.exists():
         print("Converting image to pdf")
-        ocrmypdf.ocr(tiff, output_path, deskew=True, force_ocr=True)
+        try:
+            ocrmypdf.ocr(tiff, output_path, deskew=True, force_ocr=True)
+            print(f"File {tiff} converted to PDF at {output_path}")
+        except Exception as e:
+            print(f"Error converting {tiff}: {e}")
 
 
 def search_folders(folder_path, search_for):
