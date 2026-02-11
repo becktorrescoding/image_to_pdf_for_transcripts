@@ -5,12 +5,13 @@ from pathlib import Path
 from PIL import Image
 
 # TODO add output folder path here
-output_pdf = Path("")
+output_path = Path("")
+input_path = Path("")
 
 def convert_tiff(tiff):
     if tiff.exists():
         print("Converting image to pdf")
-        ocrmypdf.ocr(tiff, output_pdf, deskew=True, force_ocr=True)
+        ocrmypdf.ocr(tiff, output_path, deskew=True, force_ocr=True)
 
 
 def search_folders(folder_path, search_for):
@@ -44,13 +45,20 @@ def search_folders(folder_path, search_for):
 
         search_images(matched_files, date)
 
+    elif len(matched_files) == 0:
+
+        print("No matching documents found. Attempting partial match of name.")
+        search_fallback(folder_path, search_for)
+
     else:
 
-        if len(matched_files) == 0:
+        response = input("File found. Would you like to view or convert it to PDF? (V/C): ")
 
-            search_fallback(folder_path, search_for)
+        if response.lower() == "v":
 
-        else:
+            Image.open(matched_files[0]).show()
+
+        elif response.lower() == "c":
 
             convert_tiff(matched_files[0])
 
@@ -90,6 +98,30 @@ def search_fallback(folder_path, search_for):
 
                     print(f"Error processing {img_path}: {e}")
 
+    if len(partial_matched_files) > 1:
+
+        print("More than one matching documents found.")
+
+        date = input("Enter Year of Admission (YY): ")
+
+        search_images(partial_matched_files, date)
+
+    elif len(partial_matched_files) == 0:
+
+        print("No matching documents found.")
+
+    else:
+
+        response = input("File found. Would you like to view or convert it to PDF? (V/C): ")
+
+        if response.lower() == "v":
+
+            Image.open(partial_matched_files[0]).show()
+
+        elif response.lower() == "c":
+
+            convert_tiff(partial_matched_files[0])
+
 
 def search_images(matched_files, date):
 
@@ -110,26 +142,33 @@ def search_images(matched_files, date):
 
     if len(files) == 1:
 
-        convert_tiff(files[0])
+        response = input("File found. Would you like to view or convert it to PDF? (V/C): ")
 
-        print("Match found")
+        if response.lower() == "v":
+
+            Image.open(files[0]).show()
+
+        elif response.lower() == "c":
+
+            convert_tiff(files[0])
+
+    elif len(files) == 0:
+
+        print("No matching documents found.")
 
     else:
-        if len(files) == 0:
-            print("No matching documents found.")
 
-        else:
-            if len(files) > 1:
+        print("More than one matching documents found.")
 
-                print("More than one matching documents found.")
+        print("Providing list of all matched files.")
 
-                with open("matched files.txt", "w") as f:
+        with open("matched files.txt", "w") as f:
 
-                    f.write("\n".join(files))
+            f.write("\n".join(files))
 
 
 if __name__ == "__main__":
-    # TODO add input folder path here
-    input_tiff = Path()
+
     name = input("Enter first and last name: ")
-    search_folders(input_tiff, name)
+
+    search_folders(input_path, name)
