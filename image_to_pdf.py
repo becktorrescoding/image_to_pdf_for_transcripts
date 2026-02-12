@@ -2,43 +2,84 @@ import os
 import ocrmypdf
 import pytesseract
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageSequence
+
+# Global Variables
+
+valid_ext = ('.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.TIF', '.tiff', '.tif')
 
 # TODO add input & output folder paths here
 output_path = Path(r"")
 input_path = Path(r"")
 
+
 def convert_tiff(tiff):
+
     if tiff.exists():
+
         print("Converting image to pdf")
+
         try:
+
             ocrmypdf.ocr(tiff, output_path, deskew=True, force_ocr=True)
+
             print(f"File {tiff} converted to PDF at {output_path}")
+
         except Exception as e:
+
             print(f"Error converting {tiff}: {e}")
+
+def bulk_convert( input, output ):
+
+    if not os.path.exists(input):
+        raise FileNotFoundError(f'{input} not found.')
+
+    images = []
+
+    for root, dirs, files in os.walk(input):
+
+        for file in files:
+
+            image = Image.open(os.path.join(root, file))
+
+            for i, page in enumerate(ImageSequence.Iterator(image)):
+
+                page = page.convert('RGB')
+
+                images.append(page)
+
+            if images:
+
+                images[0].save(output, save_all=True, append_images=images[1:] if len(images) > 1 else None, compression='ADOBE_DEFLATE')
+
+            else:
+
+                print(f"No images found in {input_path}")
 
 
 def search_folders(folder_path, search_for):
+
     matched_files = []
 
-    # Supported image extensions
-    valid_ext = ('.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.TIF', '.tiff', '.tif')
-
     for root, dirs, files in os.walk(folder_path):
+
         for file in files:
+
             if file.lower().endswith(valid_ext):
+
                 img_path = os.path.join(root, file)
 
                 try:
                     # Open image and convert to text
-                    text = pytesseract.image_to_string(Image.open(img_path))
+                    image = Image.open(img_path)
+                    text = pytesseract.image_to_string(image)
 
                     if search_for.lower() in text.lower():
-                        matched_files.append(img_path)
 
-                        print(f"Match found: {img_path}")
+                        matched_files.append(image)
 
                 except Exception as e:
+
                     print(f"Error processing {img_path}: {e}")
 
     if len(matched_files) > 1:
@@ -85,14 +126,15 @@ def search_fallback(folder_path, search_for):
 
                 try:
                     # Open image and convert to text
-                    text = pytesseract.image_to_string(Image.open(img_path))
+                    image = Image.open(img_path)
+                    text = pytesseract.image_to_string(image)
 
                     matched_words = [word for word in keywords if word.lower() in text.lower()]
 
                     # Threshold for "partial" match of name (50%)
                     if len(matched_words) >= (len(keywords) / 2) and len(keywords) > 1:
 
-                        partial_matched_files.append(img_path)
+                        partial_matched_files.append(image)
 
                     else:
 
@@ -173,6 +215,14 @@ def search_images(matched_files, date):
 
 if __name__ == "__main__":
 
-    name = input("Enter first and last name: ")
+    response = input("Would you like to find or bulk convert files? (f/c): ")
 
-    search_folders(input_path, name)
+    if response.lower() == "f":
+
+        name = input("Enter first and last name: ")
+
+        search_folders(input_path, name)
+
+    elif response.lower() == "c":
+
+        bulk_convert(input_path, output_path)
