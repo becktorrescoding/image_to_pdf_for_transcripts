@@ -34,7 +34,7 @@ def bulk_convert( input, output ):
     if not os.path.exists(input):
         raise FileNotFoundError(f'{input} not found.')
 
-    for dirs, files in os.walk(input):
+    for (root, dirs, files) in os.walk(input):
 
         for file in files:
 
