@@ -2,7 +2,7 @@ import os
 import ocrmypdf
 import pytesseract
 from pathlib import Path
-from PIL import Image, ImageSequence
+from PIL import Image
 
 # Global Variables
 
@@ -34,13 +34,13 @@ def bulk_convert( input, output ):
     if not os.path.exists(input):
         raise FileNotFoundError(f'{input} not found.')
 
-    for root, dirs, files in os.walk(input):
+    for dirs, files in os.walk(input):
 
         for file in files:
 
-            image = Image.open(os.path.join(root, file))
+            image = Image.open(os.path.join(input, file))
 
-            image.save(output)
+            image.save( os.path.join(output, os.path.splitext(file)[0]), format="PDF" )
 
 def search_folders(folder_path, search_for):
 
