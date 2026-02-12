@@ -34,28 +34,13 @@ def bulk_convert( input, output ):
     if not os.path.exists(input):
         raise FileNotFoundError(f'{input} not found.')
 
-    images = []
-
     for root, dirs, files in os.walk(input):
 
         for file in files:
 
             image = Image.open(os.path.join(root, file))
 
-            for i, page in enumerate(ImageSequence.Iterator(image)):
-
-                page = page.convert('RGB')
-
-                images.append(page)
-
-            if images:
-
-                images[0].save(output, save_all=True, append_images=images[1:] if len(images) > 1 else None, compression='ADOBE_DEFLATE')
-
-            else:
-
-                print(f"No images found in {input_path}")
-
+            image.save(output)
 
 def search_folders(folder_path, search_for):
 
