@@ -13,28 +13,30 @@ output_path = Path(r"")
 input_path = Path(r"")
 
 
-def convert_tiff(tiff):
+def convert_image(image):
 
-    if tiff.exists():
+    if image.exists():
 
         print("Converting image to pdf")
 
+
+
         try:
 
-            ocrmypdf.ocr(tiff, output_path, deskew=True, force_ocr=True)
+            ocrmypdf.ocr(image, output_path, deskew=True, force_ocr=True, output_type="pdf")
 
-            print(f"File {tiff} converted to PDF at {output_path}")
+            print(f"File {image} converted to PDF at {output_path}")
 
         except Exception as e:
 
-            print(f"Error converting {tiff}: {e}")
+            print(f"Error converting {image}: {e}")
 
-def bulk_convert( input, output ):
+def bulk_convert( input_folder, output ):
 
-    if not os.path.exists(input):
-        raise FileNotFoundError(f'{input} not found.')
+    if not os.path.exists(input_folder):
+        raise FileNotFoundError(f'{input_folder} not found.')
 
-    for root, dirs, files in os.walk(input):
+    for root, dirs, files in os.walk(input_folder):
 
         for file in files:
 
@@ -82,15 +84,27 @@ def search_folders(folder_path, search_for):
 
     else:
 
-        response = input("File found. Would you like to view or convert it to PDF? (V/C): ")
+        print("File found.")
 
-        if response.lower() == "v":
+        while True:
 
-            Image.open(matched_files[0]).show()
+            folder_response = input("Would you like to view the image, convert it to PDF, or quit? (V/C/Q): ")
 
-        elif response.lower() == "c":
+            if folder_response.lower() == "v":
 
-            convert_tiff(matched_files[0])
+                Image.open(matched_files[0]).show()
+
+            elif folder_response.lower() == "c":
+
+                convert_image(matched_files[0])
+
+            elif folder_response.lower() == "q":
+
+                break
+
+            else:
+
+                print("Invalid input. Try again.")
 
 
 def search_fallback(folder_path, search_for):
@@ -98,8 +112,6 @@ def search_fallback(folder_path, search_for):
     keywords = search_for.split()
 
     partial_matched_files = []
-
-    valid_ext = ('.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.TIF', '.tiff', '.tif')
 
     for root, dirs, files in os.walk(folder_path):
 
@@ -143,15 +155,27 @@ def search_fallback(folder_path, search_for):
 
     else:
 
-        response = input("File found. Would you like to view or convert it to PDF? (V/C): ")
+        print("File found.")
 
-        if response.lower() == "v":
+        while True:
 
-            Image.open(partial_matched_files[0]).show()
+            fallback_response = input("Would you like to view the image, convert it to PDF, or quit? (V/C/Q): ")
 
-        elif response.lower() == "c":
+            if fallback_response.lower() == "v":
 
-            convert_tiff(partial_matched_files[0])
+                Image.open(partial_matched_files[0]).show()
+
+            elif fallback_response.lower() == "c":
+
+                convert_image(partial_matched_files[0])
+
+            elif fallback_response.lower() == "q":
+
+                break
+
+            else:
+
+                print("Invalid input. Try again.")
 
 
 def search_images(matched_files, date):
@@ -171,23 +195,11 @@ def search_images(matched_files, date):
 
             print(f"Error processing {file}: {e}")
 
-    if len(files) == 1:
-
-        response = input("File found. Would you like to view or convert it to PDF? (V/C): ")
-
-        if response.lower() == "v":
-
-            Image.open(files[0]).show()
-
-        elif response.lower() == "c":
-
-            convert_tiff(files[0])
-
-    elif len(files) == 0:
+    if len(files) == 0:
 
         print("No matching documents found.")
 
-    else:
+    elif len(files) > 1:
 
         print("More than one matching documents found.")
 
@@ -197,8 +209,35 @@ def search_images(matched_files, date):
 
             f.write("\n".join(files))
 
+    else:
+
+        print("File found.")
+
+        while True:
+
+            image_response = input("Would you like to view the image, convert it to PDF, or quit? (V/C/Q): ")
+
+            if image_response.lower() == "v":
+
+                Image.open(files[0]).show()
+
+            elif image_response.lower() == "c":
+
+                convert_image(files[0])
+
+            elif image_response.lower() == "q":
+
+                break
+
+            else:
+
+                print("Invalid input. Try again.")
+
 
 if __name__ == "__main__":
+
+    if output_path == r"" or input_path == r"":
+        raise ValueError("Please provide input and output path")
 
     response = input("Would you like to find or bulk convert files? (f/c): ")
 
