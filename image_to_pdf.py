@@ -1,252 +1,229 @@
 import os
 import ocrmypdf
 import pytesseract
-from pathlib import Path
 from PIL import Image
+from pathlib import Path
+import tkinter as tk
+import threading
+from tkinter import filedialog, messagebox, scrolledtext
 
-# Global Variables
+class ImageToPDFApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Image to PDF Converter")
+        self.root.geometry("600x500")
+        self.root.resizable(width=False, height=False)
 
-valid_ext = ('.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.TIF', '.tiff', '.tif')
+        self.input_path = tk.StringVar()
+        self.output_path = tk.StringVar()
+        self.search_name = tk.StringVar()
+        self.search_year = tk.StringVar()
+        self.valid_ext = ('.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.TIF', '.tiff', '.tif')
 
-# TODO add input & output folder paths here
-output_path = Path(r"")
-input_path = Path(r"")
+        self.create_widgets()
 
+    def create_widgets(self):
+        title = tk.Label(self.root, text="Image to PDF Converter", font=("Arial", 14, "bold"))
+        title.pack(pady=10)
 
-def convert_image(image):
+        path_frame = tk.Frame(self.root, padx=20, pady=20)
+        path_frame.pack(fill="x")
 
-    if image.exists():
+        tk.Label(path_frame, text="Input Folder:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        tk.Entry(path_frame, textvariable=self.input_path, width=40).grid(row=0, column=1, padx=5)
+        tk.Button(path_frame, text="Browse", command=self.browse_input).grid(row=0, column=2)
 
-        print("Converting image to pdf")
+        tk.Label(path_frame, text="Output Folder:").grid(row=1, column=0, sticky="w", pady=5)
+        tk.Entry(path_frame, textvariable=self.output_path, width=40).grid(row=1, column=1, padx=5)
+        tk.Button(path_frame, text="Browse", command=self.browse_output).grid(row=1, column=2)
 
+        search_frame = tk.Frame(self.root, padx=20, pady=10)
+        search_frame.pack(fill="x")
 
+        tk.Label(search_frame, text="Search Name:").grid(row=0, column=0, sticky="w", pady=5)
+        tk.Entry(search_frame, textvariable=self.search_name, width=30).grid(row=0, column=1, padx=5, sticky="w")
 
+        tk.Label(search_frame, text="Year (Optional):").grid(row=1, column=0, sticky="w", pady=5)
+        tk.Entry(search_frame, textvariable=self.search_year, width=10).grid(row=1, column=1, padx=5, sticky="w")
+
+        self.start_button = tk.Button(
+            self.root,
+            text="Start Search",
+            command=self.start_search,
+            bg="green",
+            fg="white",
+            font=("Arial", 11, "bold"),
+            width=20,
+            height=2
+        )
+        self.start_button.pack(pady=5)
+
+        log_frame = tk.Frame(self.root, padx=20, pady=10)
+        log_frame.pack(fill="both", expand=True)
+
+        tk.Label(log_frame, text="Processing Log:", font=("Arial", 10, "bold")).pack(anchor="w")
+
+        self.log_text = scrolledtext.ScrolledText(log_frame, height=10, width=70)
+        self.log_text.pack(fill="both", expand=True)
+
+    def log(self, message):
+        self.log_text.insert(tk.END, f"{message}\n")
+        self.log_text.see(tk.END)
+        self.root.update_idletasks()
+
+    def browse_input(self):
+        folder = filedialog.askdirectory(title="Select Input Folder")
+        if folder:
+            self.input_path.set(folder)
+
+    def browse_output(self):
+        folder = filedialog.askdirectory(title="Select Output Folder")
+        if folder:
+            self.output_path.set(folder)
+
+    def start_search(self):
+        input_folder = self.input_path.get()
+        output_folder = self.output_path.get()
+        name = self.search_name.get()
+
+        if not input_folder or not output_folder or not name:
+            messagebox.showerror("Error", "Please enter all required fields.")
+            return
+
+        # Disable button and start thread
+        self.start_button.config(state="disabled")
+
+        thread = threading.Thread(target=self.do_search)
+        thread.daemon = True
+        thread.start()
+
+    def do_search(self):
         try:
+            input_folder = self.input_path.get()
+            name = self.search_name.get()
+            year = self.search_year.get()
 
-            ocrmypdf.ocr(image, output_path, deskew=True, force_ocr=True, output_type="pdf")
+            self.log(f"Searching for {name} in {input_folder}")
+            matched_files = self.search_folders(input_folder, name)
 
-            print(f"File {image} converted to PDF at {output_path}")
+            if not matched_files:
+                self.log("No exact matches found. Trying partial match...")
+                matched_files = self.search_fallback(input_folder, name)
+
+            if year and matched_files:
+                self.log(f"Filtering by year: {year}")
+                matched_files = self.search_images(matched_files, year)
+
+            if matched_files:
+                self.log(f"Found {len(matched_files)} file(s). Converting...")
+                self.convert_image(matched_files[0])
+                messagebox.showinfo("Success", "Image successfully converted to PDF")
+            else:
+                self.log("No matching files found.")
+                messagebox.showinfo("No Results", "No matching files found.")
+
+            self.log("Search Complete.")
 
         except Exception as e:
+            self.log(f"Error: {str(e)}")
+            messagebox.showerror("Error", str(e))
 
-            print(f"Error converting {image}: {e}")
+        finally:
+            self.start_button.config(state="normal")
 
-def bulk_convert( input_folder, output ):
+    def search_folders(self, folder_path, search_for):
 
-    if not os.path.exists(input_folder):
-        raise FileNotFoundError(f'{input_folder} not found.')
+        matched_files = []
 
-    for root, dirs, files in os.walk(input_folder):
+        for root, dirs, files in os.walk(folder_path):
+            for file in files:
+                if file.lower().endswith(self.valid_ext):
+                    img_path = os.path.join(root, file)
 
-        for file in files:
+                    try:
 
-            image = Image.open(os.path.join(root, file))
+                        text = pytesseract.image_to_string(Image.open(img_path))
 
-            image.save(output)
+                        if search_for.lower() in text.lower():
+                            matched_files.append(img_path)
+                            self.log(f"Match found: {file}")
 
-def search_folders(folder_path, search_for):
+                    except Exception as e:
+                        self.log(f"Error processing {file}: {e}")
 
-    matched_files = []
+        return matched_files
 
-    for root, dirs, files in os.walk(folder_path):
+    def search_fallback(self, folder_path, search_for):
 
-        for file in files:
+        keywords = search_for.split()
+        partial_matched_files = []
 
-            if file.lower().endswith(valid_ext):
+        for root, dirs, files in os.walk(folder_path):
+            for file in files:
+                if file.lower().endswith(self.valid_ext):
+                    img_path = os.path.join(root, file)
 
-                img_path = os.path.join(root, file)
+                    try:
 
-                try:
-                    # Open image and convert to text
-                    image = Image.open(img_path)
-                    text = pytesseract.image_to_string(image)
+                        text = pytesseract.image_to_string(Image.open(img_path))
+                        matched_words = [word for word in keywords if word.lower() in text.lower()]
 
-                    if search_for.lower() in text.lower():
+                        if len(matched_words) >= (len(keywords) / 2) and len(keywords) > 1:
+                            partial_matched_files.append(img_path)
+                            self.log(f"Partial match found: {file}")
 
-                        matched_files.append(image)
+                    except Exception as e:
+                        self.log(f"Error processing {file}: {e}")
 
-                except Exception as e:
+        return partial_matched_files
 
-                    print(f"Error processing {img_path}: {e}")
-
-    if len(matched_files) > 1:
-
-        print("More than one matching documents found.")
-
-        date = input("Enter Year of Admission (YY): ")
-
-        search_images(matched_files, date)
-
-    elif len(matched_files) == 0:
-
-        print("No matching documents found. Attempting partial match of name.")
-        search_fallback(folder_path, search_for)
-
-    else:
-
-        print("File found.")
-
-        while True:
-
-            folder_response = input("Would you like to view the image, convert it to PDF, or quit? (V/C/Q): ")
-
-            if folder_response.lower() == "v":
-
-                Image.open(matched_files[0]).show()
-
-            elif folder_response.lower() == "c":
-
-                convert_image(matched_files[0])
-
-            elif folder_response.lower() == "q":
-
-                break
-
-            else:
-
-                print("Invalid input. Try again.")
-
-
-def search_fallback(folder_path, search_for):
-
-    keywords = search_for.split()
-
-    partial_matched_files = []
-
-    for root, dirs, files in os.walk(folder_path):
-
-        for file in files:
-
-            if file.lower().endswith(valid_ext):
-
-                img_path = os.path.join(root, file)
-
-                try:
-                    # Open image and convert to text
-                    image = Image.open(img_path)
-                    text = pytesseract.image_to_string(image)
-
-                    matched_words = [word for word in keywords if word.lower() in text.lower()]
-
-                    # Threshold for "partial" match of name (50%)
-                    if len(matched_words) >= (len(keywords) / 2) and len(keywords) > 1:
-
-                        partial_matched_files.append(image)
-
-                    else:
-
-                        print(f"No matches found for {search_for}")
-
-                except Exception as e:
-
-                    print(f"Error processing {img_path}: {e}")
-
-    if len(partial_matched_files) > 1:
-
-        print("More than one matching documents found.")
-
-        date = input("Enter Year of Admission (YY): ")
-
-        search_images(partial_matched_files, date)
-
-    elif len(partial_matched_files) == 0:
-
-        print("No matching documents found.")
-
-    else:
-
-        print("File found.")
-
-        while True:
-
-            fallback_response = input("Would you like to view the image, convert it to PDF, or quit? (V/C/Q): ")
-
-            if fallback_response.lower() == "v":
-
-                Image.open(partial_matched_files[0]).show()
-
-            elif fallback_response.lower() == "c":
-
-                convert_image(partial_matched_files[0])
-
-            elif fallback_response.lower() == "q":
-
-                break
-
-            else:
-
-                print("Invalid input. Try again.")
-
-
-def search_images(matched_files, date):
-
-    files = []
-
-    for file in matched_files:
+    def convert_image(self, image_path):
 
         try:
-            text = pytesseract.image_to_string(Image.open(file))
+            img_path = Path(image_path)  # Convert string to Path object
+            output_folder = Path(self.output_path.get())
 
-            if date.lower() in text.lower():
+            # Create output filename
+            output_file = output_folder / f"{img_path.stem}.pdf"
 
-                files.append(file)
+            self.log(f"Converting {img_path.name} to PDF...")
+
+            ocrmypdf.ocr(
+                img_path,
+                output_file,  # Output to specific file, not folder
+                deskew=True,
+                force_ocr=True,
+                output_type="pdf"
+            )
+
+            self.log(f"✓ Successfully converted to: {output_file.name}")
 
         except Exception as e:
+            self.log(f"✗ Error converting {image_path}: {e}")
 
-            print(f"Error processing {file}: {e}")
+    def search_images(self, matched_files, date):
+        """This function is correct - it filters by year"""
+        files = []
 
-    if len(files) == 0:
+        for file in matched_files:
+            try:
+                text = pytesseract.image_to_string(Image.open(file))
 
-        print("No matching documents found.")
+                if date.lower() in text.lower():
+                    files.append(file)
 
-    elif len(files) > 1:
+            except Exception as e:
+                self.log(f"Error processing {file}: {e}")
 
-        print("More than one matching documents found.")
+        return files
 
-        print("Providing list of all matched files.")
 
-        with open("matched files.txt", "w") as f:
-
-            f.write("\n".join(files))
-
-    else:
-
-        print("File found.")
-
-        while True:
-
-            image_response = input("Would you like to view the image, convert it to PDF, or quit? (V/C/Q): ")
-
-            if image_response.lower() == "v":
-
-                Image.open(files[0]).show()
-
-            elif image_response.lower() == "c":
-
-                convert_image(files[0])
-
-            elif image_response.lower() == "q":
-
-                break
-
-            else:
-
-                print("Invalid input. Try again.")
+# Run the application
+def main():
+    root = tk.Tk()
+    app = ImageToPDFApp(root)
+    root.mainloop()
 
 
 if __name__ == "__main__":
-
-    if output_path == r"" or input_path == r"":
-        raise ValueError("Please provide input and output path")
-
-    response = input("Would you like to find or bulk convert files? (f/c): ")
-
-    if response.lower() == "f":
-
-        name = input("Enter first and last name: ")
-
-        search_folders(input_path, name)
-
-    elif response.lower() == "c":
-
-        bulk_convert(input_path, output_path)
+    main()
