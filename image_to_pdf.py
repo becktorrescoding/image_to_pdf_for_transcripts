@@ -11,7 +11,7 @@ class ImageToPDFApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Image to PDF Converter")
-        self.root.geometry("600x500")
+        self.root.geometry("1200x1000")
         self.root.resizable(width=False, height=False)
 
         self.input_path = tk.StringVar()
@@ -43,7 +43,7 @@ class ImageToPDFApp:
         tk.Label(search_frame, text="Search Name:").grid(row=0, column=0, sticky="w", pady=5)
         tk.Entry(search_frame, textvariable=self.search_name, width=30).grid(row=0, column=1, padx=5, sticky="w")
 
-        tk.Label(search_frame, text="Year (Optional):").grid(row=1, column=0, sticky="w", pady=5)
+        tk.Label(search_frame, text="Year [YY] (Optional):").grid(row=1, column=0, sticky="w", pady=5)
         tk.Entry(search_frame, textvariable=self.search_year, width=10).grid(row=1, column=1, padx=5, sticky="w")
 
         self.start_button = tk.Button(
