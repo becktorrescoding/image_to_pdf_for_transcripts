@@ -1,19 +1,20 @@
 # Image to PDF Converter & OCR Search Tool
 
-A Python utility that combines OCR-based document search with image-to-PDF conversion capabilities. Search through image files and PDFs using Optical Character Recognition (OCR) to find documents containing specific text patterns, or bulk convert images to searchable PDFs. Particularly useful for locating and processing patient records or documents by name.
+A Python GUI application that combines OCR-based document search with image-to-PDF conversion capabilities. Features an intuitive graphical interface that allows users to search through image files and PDFs using Optical Character Recognition (OCR) to find documents containing specific text patterns, then convert them to searchable PDFs. Particularly useful for locating and processing patient records or documents by name without needing to edit code.
 
 ## Features
 
-- **Dual Mode Operation**: Choose between document search mode or bulk conversion mode
+- **Graphical User Interface**: Easy-to-use GUI built with tkinter - no code editing required
+- **Folder Browser**: Browse and select input/output folders with native file dialogs
 - **OCR Text Search**: Searches through images and PDFs using Tesseract OCR
 - **Multiple Format Support**: Handles PDF, JPG, JPEG, PNG, BMP, and TIFF files
 - **Fuzzy Matching**: Falls back to partial name matching (50% threshold) if exact match fails
-- **Date Filtering**: Refine search results by admission year when multiple matches exist
-- **Interactive Viewing**: Preview matched documents before converting
+- **Year Filtering**: Optional field to refine search results by admission year
+- **Real-time Logging**: Processing status displayed in scrollable log window
 - **PDF Generation**: Converts matched documents to searchable PDFs using OCRmyPDF
-- **Bulk Conversion**: Convert entire folders of images to PDFs in one operation
+- **Threaded Processing**: Non-blocking operations keep GUI responsive during long tasks
 - **Recursive Search**: Searches through entire directory structures
-- **User-Friendly Prompts**: Interactive command-line interface with clear options
+- **User-Friendly**: Clear error messages and success notifications
 
 ## Prerequisites
 
@@ -35,127 +36,174 @@ pip install ocrmypdf pytesseract pillow
 
 ## Installation
 
-1. Clone or download this repository
-2. Install Tesseract OCR for your operating system
-3. Install Python dependencies:
+1. **Clone or download this repository**
+
+2. **Install Tesseract OCR** - Download from [tesseract-ocr](https://github.com/tesseract-ocr/tesseract)
+   - Windows: Download installer from GitHub releases
+   - macOS: `brew install tesseract`
+   - Linux: `sudo apt-get install tesseract-ocr`
+
+3. **Install Python dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
-4. Configure the script (see Configuration section)
+   Or manually:
+   ```bash
+   pip install ocrmypdf pytesseract pillow
+   ```
+
+4. **Launch the GUI:**
+   ```bash
+   python image_to_pdf_gui.py
+   ```
+
+## Screenshots
+
+### Main Interface
+The application features a clean, intuitive interface:
+- **Folder Selection**: Browse buttons for easy path selection
+- **Search Fields**: Name and optional year input
+- **Processing Log**: Real-time status updates in scrollable text area
+- **Green Start Button**: Initiates the search and conversion process
+
+### Typical Workflow
+1. Select input folder containing scanned images
+2. Select output folder for converted PDFs
+3. Enter patient/document name
+4. (Optional) Enter 2-digit year for filtering
+5. Click "Start Search"
+6. Monitor progress in log window
+7. Receive success notification when complete
 
 ## Configuration
 
-Before running the script, you **must** configure the input and output paths:
+**No configuration needed!** The GUI allows you to select folders through browse dialogs at runtime. Simply:
 
-### Input and Output Paths
-Edit lines 12-13 in `image_to_pdf.py`:
-```python
-output_path = Path(r"C:/path/to/output/folder")
-input_path = Path(r"C:/path/to/input/folder")
-```
+1. Launch the application
+2. Click "Browse" to select your input folder (where images are located)
+3. Click "Browse" to select your output folder (where PDFs will be saved)
+4. Enter search criteria and click "Start Search"
 
-**Important Notes:**
-- Both paths are required - the script will raise an error if either is empty
-- Use the `r` prefix before the string to handle Windows paths correctly
-- For network drives, use forward slashes (e.g., `r"//server/share/folder"`)
-- The output_path should be a folder, not a specific filename
-- The input_path should point to the root folder containing your documents
+**Optional**: If you want to set default paths in the code, edit `image_to_pdf_gui.py`:
+- Line 17-18: Modify `self.input_path` and `self.output_path` initialization
+
+For advanced users who prefer command-line interface, see `image_to_pdf.py` (requires manual path configuration).
 
 ## Usage
 
-Run the script from the command line:
+### Running the Application
 
 ```bash
-python image_to_pdf.py
+python image_to_pdf_gui.py
 ```
 
-### Mode Selection
-
-The script first asks which mode you want to use:
-
-```
-Would you like to find or bulk convert files? (f/c):
-```
-
-- **`f`** - Search mode: Find specific documents by name
-- **`c`** - Bulk convert mode: Convert all images in input folder to PDFs
+A graphical window will open with the following interface:
 
 ---
 
-### Search Mode (f)
+### Step-by-Step Usage
 
-#### 1. Enter Name
-When prompted, enter the first and last name to search for:
+#### 1. Select Folders
+- **Input Folder**: Click "Browse" next to "Input Folder" and select the folder containing your images
+- **Output Folder**: Click "Browse" next to "Output Folder" and select where you want PDFs saved
+
+#### 2. Enter Search Criteria
+- **Search Name**: Type the first and last name to search for (e.g., "John Smith")
+- **Year (Optional)**: Enter a 2-digit year (e.g., "24") to filter results. Leave blank to skip year filtering.
+
+#### 3. Start Processing
+Click the green **"Start Search"** button to begin.
+
+#### 4. Monitor Progress
+The Processing Log window shows real-time status:
 ```
-Enter first and last name: John Smith
+Searching for John Smith in C:/Documents/Images
+Match found: scan_001.jpg
+No exact matches found. Trying partial match...
+Partial match found: scan_002.jpg
+Filtering by year: 24
+Found 1 file(s). Converting...
+Converting scan_002.jpg to PDF...
+✓ Successfully converted to: scan_002.pdf
+Search Complete.
 ```
 
-#### 2. Search Results
-
-**Single Match Found:**
-```
-File found.
-Would you like to view the image, convert it to PDF, or quit? (V/C/Q):
-```
-- **`V`** - View the image in your default image viewer
-- **`C`** - Convert the image to a searchable PDF
-- **`Q`** - Quit without taking action
-
-**Multiple Matches Found:**
-If multiple documents match, you'll be prompted for the admission year:
-```
-More than one matching documents found.
-Enter Year of Admission (YY): 24
-```
-The script then filters by the year and presents options to view, convert, or quit.
-
-**No Exact Match:**
-If no exact match is found, the script automatically attempts partial matching (50% of keywords). If partial matches are found, you'll see the same interactive options.
-
-**Too Many Matches:**
-If multiple documents still match after date filtering, the script creates a text file listing all matched files:
-```
-matched files.txt
-```
+#### 5. Results
+- Success message box appears when conversion is complete
+- Converted PDF is saved to your output folder
+- If no matches found, you'll see an informational message
 
 ---
 
-### Bulk Convert Mode (c)
+### Search Behavior
 
-Converts all images in the input folder and subfolders to searchable PDFs:
-```
-Would you like to find or bulk convert files? (f/c): c
-```
+**Exact Match First:**
+The application searches for the exact name you entered in image text (via OCR).
 
-The script will:
-1. Recursively scan the input folder
-2. Process all supported image formats
-3. Save converted PDFs to the output folder
-4. Display progress and any errors encountered
+**Automatic Fallback:**
+If no exact match is found, it automatically tries partial matching:
+- Splits your search into keywords (e.g., "John Smith" → ["John", "Smith"])
+- Finds documents containing at least 50% of the keywords
+- Example: A document with only "John" would match
+
+**Year Filtering:**
+If you enter a year, matched files are filtered to only those containing that year in their text.
+
+---
+
+### Example Workflow
+
+**Scenario**: Find and convert a patient record for "Jane Doe" from 2024
+
+1. Launch app: `python image_to_pdf_gui.py`
+2. Browse to: `C:/Hospital/Scans`
+3. Browse output to: `C:/Hospital/Converted`
+4. Enter name: `Jane Doe`
+5. Enter year: `24`
+6. Click "Start Search"
+7. Wait for completion message
+8. Find PDF at: `C:/Hospital/Converted/scan_xyz.pdf`
 
 ## How It Works
 
-### Main Functions
+### GUI Architecture
 
-- **`search_folders(folder_path, search_for)`**: Primary search function that recursively scans directories for exact text matches
-- **`search_fallback(folder_path, search_for)`**: Partial keyword matching (50% threshold) when exact search fails
-- **`search_images(matched_files, date)`**: Filters results by admission year and handles multiple matches
-- **`convert_image(image)`**: Converts a single matched document to searchable PDF using OCRmyPDF with deskewing
-- **`bulk_convert(input_folder, output)`**: Batch processes all images in a folder to PDFs
+The application uses a **class-based tkinter GUI** with the following structure:
 
-### Workflow
+```
+ImageToPDFApp (Main Class)
+├── __init__()           # Initialize window and variables
+├── create_widgets()     # Build GUI interface
+├── browse_input()       # Handle input folder selection
+├── browse_output()      # Handle output folder selection
+├── start_search()       # Validate inputs and start thread
+├── do_search()          # Main search workflow (runs in thread)
+├── search_folders()     # Exact text match via OCR
+├── search_fallback()    # Partial keyword matching
+├── search_images()      # Filter by year
+├── convert_image()      # Convert to searchable PDF
+└── log()                # Display messages in GUI
+```
 
-1. **Initialization**: Validates that input and output paths are configured
-2. **Mode Selection**: User chooses between search or bulk convert
-3. **Search Mode**:
-   - Recursively scans folders
-   - Performs OCR on each image
-   - Matches against search criteria
-   - Provides interactive options for viewing/converting
-4. **Bulk Mode**:
-   - Walks through all subdirectories
-   - Converts all supported image formats to PDF
-   - Saves to output location
+### Search Workflow
+
+1. **User Input**: User enters search criteria via GUI fields
+2. **Validation**: System checks all required fields are filled
+3. **Threading**: Search runs in background thread (GUI stays responsive)
+4. **OCR Processing**: Each image is processed with Tesseract OCR
+5. **Text Matching**: Extracted text is compared against search criteria
+6. **Fallback**: If no exact match, automatically tries partial matching
+7. **Filtering**: Optional year filter applied if provided
+8. **Conversion**: Matched file(s) converted to PDF with OCRmyPDF
+9. **Notification**: User notified of success/failure
+
+### Technical Details
+
+- **OCR Engine**: Tesseract (via pytesseract) extracts text from images
+- **PDF Creation**: OCRmyPDF creates searchable PDFs with deskewing
+- **Threading**: `threading.Thread` prevents GUI freezing during processing
+- **File Handling**: `pathlib.Path` for cross-platform path management
+- **Error Handling**: Try-except blocks catch and log errors gracefully
 
 ### Supported File Types
 
@@ -167,96 +215,176 @@ The script will:
 
 ## Output
 
-### Search Mode
-- **Interactive Preview**: View matched documents before converting
-- **Searchable PDFs**: Converted documents saved to configured output path
-- **Match List**: When multiple matches exist after filtering, creates `matched files.txt` with all file paths
+### Success Case
+- **Searchable PDF**: Converted document saved to output folder with original filename + `.pdf`
+- **Log Messages**: Real-time progress shown in GUI log window
+- **Success Dialog**: Pop-up notification confirms completion
 - **OCR Enhancement**: OCRmyPDF applies deskewing and forced OCR for improved readability
 
-### Bulk Convert Mode
-- All images in input folder converted to PDFs
-- Maintains folder structure in output location
-- Progress displayed in console
+### Example Output
+```
+Input:  C:/Documents/scan_12345.jpg
+Output: C:/Converted/scan_12345.pdf
+```
+
+### No Matches Case
+- **Informational Dialog**: "No matching files found" message
+- **Log Details**: Shows search attempts and why no matches were found
+
+### Error Case
+- **Error Dialog**: Specific error message displayed
+- **Log Details**: Full error traceback in log window for debugging
 
 ## Error Handling
 
-The script includes comprehensive error handling for:
-- **Configuration Validation**: Ensures input and output paths are set before execution
-- **File Reading Errors**: Catches and reports issues opening image files
-- **OCR Processing Failures**: Handles Tesseract errors gracefully
-- **Invalid Image Formats**: Skips unsupported files with error messages
-- **Missing Directories**: Validates input folder exists before processing
-- **User Input Validation**: Handles invalid menu choices with retry prompts
+The GUI includes comprehensive error handling:
 
-All errors are logged to the console with the affected file path and error description.
+### Input Validation
+- **Empty Fields**: "Please enter all required fields" dialog if name or paths missing
+- **Invalid Paths**: System validates folder existence before processing
+- **Clear Messaging**: Specific error messages guide user to fix issues
+
+### Processing Errors
+- **OCR Failures**: Logged with filename and error details
+- **Image Read Errors**: Skips corrupted files, continues processing others
+- **Conversion Errors**: Detailed error message with troubleshooting hints
+
+### User Experience
+- **Non-blocking Errors**: GUI remains responsive even during errors
+- **Error Logs**: All errors displayed in log window for review
+- **Graceful Degradation**: Partial matches attempted if exact match fails
+
+### Common Error Messages
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "Please enter all required fields" | Missing name or folder paths | Fill in all required fields |
+| "Error processing [file]" | Corrupted or unreadable image | Check image file integrity |
+| "No matching files found" | No documents contain search text | Verify spelling, try partial match |
+| Tesseract error | OCR engine not installed | Install Tesseract OCR |
 
 ## Limitations
 
-- OCR accuracy depends on image quality and text clarity
-- Processing large directories can be time-consuming
-- Network drive access may be slower than local storage
-- Partial matching threshold is fixed at 50% of keywords
-- Bulk conversion processes all files sequentially (no parallel processing)
-- Year-based filtering expects two-digit year format (YY)
-- Generated `matched files.txt` overwrites previous results
+- **OCR Accuracy**: Depends on image quality, text clarity, and scan resolution
+- **Processing Speed**: Large directories or high-resolution images can be slow
+- **Network Drives**: May be slower than local storage; consider copying files locally first
+- **Partial Match Threshold**: Fixed at 50% of keywords (not user-configurable in GUI)
+- **Single File Conversion**: Currently converts only the first matched file
+- **Year Format**: Only supports 2-digit year format (YY), not 4-digit (YYYY)
+- **GUI Responsiveness**: During OCR processing, only log updates; button disabled until complete
+- **Memory Usage**: Processing very large images may consume significant RAM
 
 ## Troubleshooting
 
-### "Please provide input and output path" Error
-- Ensure both `input_path` and `output_path` variables are configured in the script
-- Check that the paths are not empty strings (`r""`)
+### GUI Won't Open
+**Symptom**: Double-clicking does nothing or window appears then closes
+**Solutions**:
+- Run from terminal to see error messages: `python image_to_pdf_gui.py`
+- Check Python version (requires 3.7+)
+- Verify tkinter is installed: `python -m tkinter` (should open test window)
 
 ### "Tesseract not found" Error
-- Ensure Tesseract is installed and added to your system PATH
-- On Windows, you may need to set the path manually:
+**Symptom**: Error dialog when clicking "Start Search"
+**Solutions**:
+- Ensure Tesseract OCR is installed
+- Add Tesseract to system PATH
+- **Windows**: Manually set path in code:
   ```python
   pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
   ```
 
 ### OCRmyPDF Errors
-- Ensure Ghostscript is installed (required by OCRmyPDF)
-- Check that output directory exists and is writable
-- Verify sufficient disk space for PDF generation
+**Symptom**: PDF conversion fails
+**Solutions**:
+- Install Ghostscript (required by OCRmyPDF)
+- Check output folder is writable
+- Verify sufficient disk space
+- Try with smaller/simpler image first
 
 ### No Matches Found
-- Verify image quality is sufficient for OCR
-- Try partial name search (first or last name only)
-- Check for spelling variations in documents
-- Ensure documents contain searchable text (not handwritten)
+**Symptom**: "No matching files found" message
+**Solutions**:
+- Verify image quality is clear enough for OCR
+- Check spelling of search name
+- Try searching for just first or last name
+- Test with known document to verify OCR is working
+- Images with handwriting may not work well
 
-### Image Won't Open for Viewing
-- Ensure you have a default image viewer configured
-- Check file permissions
-- Verify the image file isn't corrupted
+### GUI Freezes
+**Symptom**: Window becomes unresponsive
+**Solutions**:
+- Wait - processing may take time for large folders
+- Check log window for progress updates
+- Force quit and try with smaller folder first
+- Reduce image resolution if files are very large
 
-### Bulk Conversion Issues
-- Ensure input folder path is correct and accessible
-- Check that you have write permissions to the output folder
-- Verify images are in supported formats
+### Browse Button Not Working
+**Symptom**: Clicking Browse does nothing
+**Solutions**:
+- Check file system permissions
+- Try running as administrator (Windows)
+- Verify folder paths don't contain special characters
+
+### "Please enter all required fields" Error
+**Symptom**: Error even though fields look filled
+**Solutions**:
+- Folders must be selected via Browse button
+- Name field cannot be empty
+- Try clearing and re-entering information
+
+### Output PDF is Empty or Corrupted
+**Symptom**: PDF created but contains no content
+**Solutions**:
+- Check original image contains readable text
+- Verify image file isn't corrupted
+- Try with different image format
+- Increase image contrast before processing
 
 ## Future Enhancements
 
 Potential improvements for future versions:
-- Command-line arguments for paths instead of hardcoded variables
-- Configuration file support (YAML/JSON)
-- Parallel processing for bulk conversions
-- Progress bar for large batch operations
-- Adjustable partial match threshold via user input
-- GUI interface for non-technical users
-- Export search results to CSV/Excel
-- Advanced filtering options (date ranges, file types)
-- Logging to file for audit trail
-- Resume capability for interrupted bulk conversions
+
+### GUI Improvements
+- **Save/Load Settings**: Remember last used folders
+- **Theme Selection**: Light/dark mode options
+- **Progress Bar**: Visual progress indicator during processing
+- **Drag & Drop**: Drop files directly into window
+- **Multi-file Selection**: Convert multiple matched files at once
+- **Preview Pane**: Show thumbnail of found images before converting
+
+### Functionality
+- **Bulk Convert Mode**: Add radio button to convert all files in folder
+- **Advanced Search**: Search by multiple criteria (name AND date range)
+- **Custom Match Threshold**: Slider to adjust partial match percentage
+- **Four-digit Years**: Support YYYY format in addition to YY
+- **Export Results**: Save list of matched files to CSV/Excel
+- **Batch Processing**: Queue multiple searches to run sequentially
+
+### Performance
+- **Parallel Processing**: Multi-threaded conversion for multiple files
+- **Image Caching**: Cache OCR results to speed up repeated searches
+- **Smart Scanning**: Skip previously scanned files
+- **Low-res Preview**: Quick preview mode before full OCR
+
+### Advanced Features
+- **Regular Expression Search**: Pattern matching for complex queries
+- **File Management**: Option to move/copy originals after conversion
+- **PDF Merging**: Combine multiple matched documents into single PDF
+- **Annotation**: Add notes or highlights to converted PDFs
+- **Cloud Integration**: Upload to Google Drive/Dropbox after conversion
+- **Logging System**: Export detailed logs to file for auditing
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Copyright © 2025 Tomas Beck Torres
+Copyright (c) 2025 Tomás beck Torres
 
 ## Contributing
 
 Contributions, issues, and feature requests are welcome! Feel free to check the issues page if you want to contribute.
+
+**How to contribute:**
 
 1. Fork the project
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
@@ -264,8 +392,25 @@ Contributions, issues, and feature requests are welcome! Feel free to check the 
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+**Areas where contributions are especially welcome:**
+- GUI improvements (themes, layouts, new widgets)
+- Performance optimizations
+- Additional file format support
+- Multi-language support
+- Documentation improvements
+- Bug fixes and testing
+
 ## Contact
 
-Tomás Beck Torres - becktorrescoding@gmail.com | bectorrescoding.odoo.com
+Tomás Beck Torres - becktorrescoding@gmail.com
 
-Project Link: [https://https://github.com/becktorrescoding/image_to_pdf_for_transcripts](https://https://github.com/becktorrescoding/image_to_pdf_for_transcripts)
+Website - becktorrescoding@odoo.com
+
+Project Link: [https://github.com/yourusername/image-to-pdf-ocr](https://github.com/yourusername/image-to-pdf-ocr)
+
+## Acknowledgments
+
+- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) - OCR engine
+- [OCRmyPDF](https://github.com/ocrmypdf/OCRmyPDF) - PDF conversion tool
+- [pytesseract](https://github.com/madmaze/pytesseract) - Python wrapper for Tesseract
+- [Pillow](https://python-pillow.org/) - Python imaging library
