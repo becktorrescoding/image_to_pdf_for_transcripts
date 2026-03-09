@@ -13,7 +13,7 @@ A Python GUI application that combines OCR-based document search with image-to-P
 - **Fuzzy Matching**: Falls back to partial name matching (50% threshold) if exact match fails
 - **Year Filtering**: Optional field to refine search results by year
 - **Real-time Logging**: Processing status displayed in scrollable log window with progress counters
-- **PDF Generation**: Converts matched documents to searchable PDFs using OCRmyPDF
+- **Smart Filename Generation**: Automatically names output PDFs using information extracted from the document (name, degree/admission date, document type)
 - **Threaded Processing**: Non-blocking operations keep GUI responsive during long tasks
 - **Recursive Search**: Searches through entire directory structures
 - **User-Friendly**: Clear error messages, success notifications, and conversion summaries
@@ -227,9 +227,37 @@ ImageToPDFApp (Main Class)
 ├── search_folders()        # Exact text match via OCR
 ├── search_fallback()       # Partial keyword matching
 ├── search_images()         # Filter by year
+├── generate_filename()     # Extract fields from OCR text and build filename
 ├── convert_image()         # Convert single image to searchable PDF
 └── log()                   # Display messages in GUI
 ```
+
+### Automatic Filename Generation (Search Mode)
+
+When a document is converted in Search Mode, the output PDF is automatically named using information extracted from the OCR text rather than the original scanned filename.
+
+**Degree format:**
+```
+LastName_FirstName_MI_DegreeName_Month_Day_Year.pdf
+```
+Example: `Smith_John_A_Bachelor_of_Commerce_June_12_1979.pdf`
+
+**Transcript format:**
+```
+LastName_FirstName_MI_Transcript_Month_Day_Year.pdf
+```
+Example: `Smith_John_A_Transcript_March_3_1975.pdf`
+
+**How it works:**
+1. Detects document type by looking for `"Degree Received"` or `"Date of Admission"` in the OCR text
+2. Extracts the student name — handles both `Last, First MI` and `First MI Last` formats
+3. For degrees: extracts the degree name from the text following `"Degree Received"` and the graduation date to its right
+4. For transcripts: extracts the admission date from the text following `"Date of Admission"`
+5. Normalises dates to a consistent `Month_DD_YYYY` format regardless of how they appear in the document — both `June 12, 1979` and `06/12/79` will produce `June_12_1979`. 2-digit years are expanded automatically (`79` → `1979`, years `00–19` are assumed to be 2000s)
+6. Assembles the parts into a clean filename, stripping invalid characters
+
+**Fallback behaviour:**
+If any field cannot be extracted, a warning is logged and the original scanned filename is used instead. This ensures conversion always completes even if the OCR output is unclear.
 
 ### Search Mode Workflow
 
@@ -340,7 +368,8 @@ This makes the tool suitable for handling sensitive documents such as university
 - **Processing Speed**: Large directories or high-resolution images can be slow
 - **Network Drives**: May be slower than local storage; consider copying files locally first
 - **Partial Match Threshold**: Fixed at 50% of keywords (not user-configurable in GUI)
-- **Single File Conversion**: Search Mode converts only the first matched file
+- **Search Mode converts first match only**: Only the first matched file is converted; subsequent matches are ignored
+- **Filename generation accuracy**: Auto-naming relies on OCR quality — poor scans may fall back to the original filename
 - **Year Format**: Searches for year as a text string in OCR output; works with both 2-digit and 4-digit years depending on what appears in the document
 - **GUI Responsiveness**: During OCR processing, only log updates; button disabled until complete
 - **Memory Usage**: Processing very large images may consume significant RAM
