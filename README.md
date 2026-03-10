@@ -150,10 +150,16 @@ Search and conversion complete!
 Found 42 image(s) to convert.
 
 Converting: scan_001.jpg
+  📄 Generated filename: Smith_John_A_Bachelor_of_Commerce_June_12_1979.pdf
   ✓ Success (1/42)
 
 Converting: scan_002.png
+  📄 Generated filename: Doe_Jane_Transcript_March_3_1975.pdf
   ✓ Success (2/42)
+
+Converting: scan_003.jpg
+  ⚠ Could not detect document type — using original filename.
+  ✓ Success (3/42)
 ...
 ==================================================
 Bulk conversion complete!
@@ -305,8 +311,8 @@ If any field cannot be extracted, a warning is logged and the original scanned f
 - **Success Dialog**: Pop-up notification confirms completion
 
 ### Bulk Convert Mode — Success
-- **Searchable PDFs**: All converted documents saved to output folder, preserving original filenames
-- **Progress Log**: Per-file status with running count (e.g., `✓ Success (12/42)`)
+- **Searchable PDFs**: All converted documents saved to output folder with auto-generated structured filenames (falls back to original filename if document type cannot be detected)
+- **Progress Log**: Per-file status showing generated filename and running count (e.g., `✓ Success (12/42)`)
 - **Summary Dialog**: Reports total files converted and number of errors
 
 ### No Matches Case (Search Mode)
