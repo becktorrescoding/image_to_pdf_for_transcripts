@@ -13,7 +13,7 @@ class ImageToPDFApp:
         self.root = root
         self.root.title("Image to PDF Converter")
         self.root.geometry("700x600")
-        self.root.resizable(width=False, height=False)
+        self.root.resizable(width=True, height=True)
 
         # Variables
         self.input_path = tk.StringVar()
