@@ -282,6 +282,7 @@ class ImageToPDFApp:
 
         for i, img_path in enumerate(all_files, start=1):
             file = os.path.basename(img_path)
+            os.rename(file, file.replace("#", ""))
             self.log(f"  Scanning {i}/{total}: {file}")
             try:
                 text = pytesseract.image_to_string(Image.open(img_path))
@@ -309,6 +310,7 @@ class ImageToPDFApp:
 
         for i, img_path in enumerate(all_files, start=1):
             file = os.path.basename(img_path)
+            os.rename(file, file.replace("#", ""))
             self.log(f"  Scanning {i}/{total}: {file}")
             try:
                 text = pytesseract.image_to_string(Image.open(img_path))
