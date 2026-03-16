@@ -213,7 +213,7 @@ class ImageToPDFApp:
         total_files = 0
 
         # Count files
-        for root, dirs, files in os.walk(input_folder):
+        for root, dirs, files in os.walk(input_folder, followlinks=False):
             for file in files:
                 if file.lower().endswith(self.valid_ext):
                     total_files += 1
@@ -222,18 +222,20 @@ class ImageToPDFApp:
         self.log("")
 
         # Convert each file
-        for root, dirs, files in os.walk(input_folder):
+        for root, dirs, files in os.walk(input_folder, followlinks=False):
             for file in files:
                 if file.lower().endswith(self.valid_ext):
-                    os.rename(file, file.replace("#", ""))
                     img_path = Path(root) / file
 
                     try:
                         self.log(f"Converting: {file}")
 
                         # Extract text and generate structured filename
-                        text = pytesseract.image_to_string(Image.open(img_path))
-                        output_stem = self.generate_filename(text, img_path.stem)
+                        img = Image.open(img_path)
+                        name = pytesseract.image_to_string(img.crop((337, 203, 727, 261)))
+                        date = pytesseract.image_to_string(img.crop((1446, 335, 1817, 596)))
+                        degree = pytesseract.image_to_string(img.crop((1049, 464, 1600, 548)))
+                        output_stem = self.generate_filename(name, date, degree, img_path.stem)
                         output_file = output_folder / f"{output_stem}.pdf"
 
                         # Avoid overwriting existing files
@@ -274,7 +276,7 @@ class ImageToPDFApp:
 
         all_files = [
             os.path.join(root, file)
-            for root, dirs, files in os.walk(folder_path)
+            for root, dirs, files in os.walk(folder_path, followlinks=False)
             for file in files
             if file.lower().endswith(self.valid_ext)
         ]
@@ -283,7 +285,6 @@ class ImageToPDFApp:
 
         for i, img_path in enumerate(all_files, start=1):
             file = os.path.basename(img_path)
-            os.rename(file, file.replace("#", ""))
             self.log(f"  Scanning {i}/{total}: {file}")
             try:
                 text = pytesseract.image_to_string(Image.open(img_path))
@@ -302,7 +303,7 @@ class ImageToPDFApp:
 
         all_files = [
             os.path.join(root, file)
-            for root, dirs, files in os.walk(folder_path)
+            for root, dirs, files in os.walk(folder_path, followlinks=False)
             for file in files
             if file.lower().endswith(self.valid_ext)
         ]
@@ -311,7 +312,6 @@ class ImageToPDFApp:
 
         for i, img_path in enumerate(all_files, start=1):
             file = os.path.basename(img_path)
-            os.rename(file, file.replace("#", ""))
             self.log(f"  Scanning {i}/{total}: {file}")
             try:
                 text = pytesseract.image_to_string(Image.open(img_path))
@@ -324,7 +324,7 @@ class ImageToPDFApp:
 
         return partial_matched_files
 
-    def generate_filename(self, text, fallback_stem):
+    def generate_filename(self, name, date, degree, fallback_stem):
         """
         Generate a structured filename from OCR text.
 
@@ -339,8 +339,8 @@ class ImageToPDFApp:
             return re.sub(r'[\\/*?:"<>|,]', '', value).strip()
 
         # --- Detect document type ---
-        is_degree = bool(re.search(r'degree\s+received', text, re.IGNORECASE))
-        is_transcript = bool(re.search(r'date\s+of\s+admission', text, re.IGNORECASE))
+        is_degree = bool(re.search(r'degree\s+received', degree, re.IGNORECASE))
+        is_transcript = bool(re.search(r'date\s+of\s+admission', date, re.IGNORECASE))
 
         if not is_degree and not is_transcript:
             self.log(f"  ⚠ Could not detect document type — using original filename.")
@@ -355,7 +355,7 @@ class ImageToPDFApp:
         # Format 1: Last, First [MI]
         name_match = re.search(
             r'\b([A-Z][a-zA-Z\'\-]+),\s+([A-Z][a-zA-Z\'\-]+)(?:\s+([A-Z])\.?)?',
-            text
+            name
         )
         if name_match:
             last  = name_match.group(1)
@@ -365,7 +365,7 @@ class ImageToPDFApp:
             # Format 2: First [MI] Last
             name_match = re.search(
                 r'\b([A-Z][a-zA-Z\'\-]+)(?:\s+([A-Z])\.?)?\s+([A-Z][a-zA-Z\'\-]+)\b',
-                text
+                name
             )
             if name_match:
                 first  = name_match.group(1)
@@ -381,7 +381,7 @@ class ImageToPDFApp:
         if is_degree:
             degree_match = re.search(
                 r'degree\s+received[:\s]+([A-Za-z\s]+?)(?:\n|$)',
-                text,
+                degree,
                 re.IGNORECASE
             )
             if degree_match:
@@ -430,14 +430,14 @@ class ImageToPDFApp:
             # Date of graduation appears to the right of the degree on the same line
             date_match = re.search(
                 r'degree\s+received[^\n]*?(' + DATE_NAMED + r'|' + DATE_NUMERIC + r')',
-                text,
+                date,
                 re.IGNORECASE
             )
         else:
             # Date of admission appears under "Date of Admission" label
             date_match = re.search(
                 r'date\s+of\s+admission[:\s]+(' + DATE_NAMED + r'|' + DATE_NUMERIC + r')',
-                text,
+                date,
                 re.IGNORECASE
             )
 
@@ -470,8 +470,11 @@ class ImageToPDFApp:
             self.log(f"Converting {img_path.name} to PDF...")
 
             # Extract text and generate filename
-            text = pytesseract.image_to_string(Image.open(img_path))
-            output_stem = self.generate_filename(text, img_path.stem)
+            img = Image.open(img_path)
+            name = pytesseract.image_to_string(img.crop((337, 203, 727, 261)))
+            date = pytesseract.image_to_string(img.crop((1446, 335, 1817, 596)))
+            degree = pytesseract.image_to_string(img.crop((1049, 464, 1600, 548)))
+            output_stem = self.generate_filename(name, date, degree, img_path.stem)
             output_file = output_folder / f"{output_stem}.pdf"
 
             # Avoid overwriting existing files
