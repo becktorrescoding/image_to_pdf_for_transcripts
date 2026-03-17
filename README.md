@@ -10,11 +10,12 @@ A Python GUI application that combines OCR-based document search with image-to-P
 - **OCR Text Search**: Searches through images and PDFs using Tesseract OCR
 - **Bulk Conversion**: Convert all images in a directory (and subdirectories) to searchable PDFs
 - **Multiple Format Support**: Handles PDF, JPG, JPEG, PNG, BMP, and TIFF files
-- **Fuzzy Matching**: Falls back to partial name matching (50% threshold) if exact match fails
+- **Fuzzy Matching**: Falls back to partial keyword matching if exact match fails — returns the file(s) with the most keyword hits (all ties included)
 - **Year Filtering**: Optional field to refine search results by year
 - **Real-time Logging**: Processing status displayed in scrollable log window with progress counters
 - **Smart Filename Generation**: Automatically names output PDFs using information extracted from the document (name, degree/admission date, document type)
 - **Threaded Processing**: Non-blocking operations keep GUI responsive during long tasks
+- **Pause & Stop Controls**: Pause processing between files and resume at any time, or stop early — a summary of completed work is always shown
 - **Recursive Search**: Searches through entire directory structures
 - **User-Friendly**: Clear error messages, success notifications, and conversion summaries
 
@@ -24,7 +25,8 @@ A Python GUI application that combines OCR-based document search with image-to-P
 
 1. **Python 3.7+** — Download from [python.org](https://www.python.org/downloads/)
 2. **Tesseract OCR** — See installation instructions below
-3. **Python packages** — `ocrmypdf`, `pytesseract`, `pillow`
+3. **Poppler** — Required by pdf2image for PDF rendering; see installation instructions below
+4. **Python packages** — `ocrmypdf`, `pytesseract`, `pillow`, `pdf2image`
 
 ---
 
@@ -112,13 +114,46 @@ Or download and extract the ZIP from the GitHub page.
 
 ---
 
-### 3. Install Python Dependencies
+---
+
+### 3. Install Poppler
+
+Poppler is required by `pdf2image` to render PDF pages as images during search. It is **not** a Python package and must be installed separately.
+
+#### Windows
+
+1. Install Poppler via [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/):
+   ```bash
+   winget install oschwartz10612.poppler
+   ```
+2. **Verify** by opening a new Command Prompt and running:
+   ```bash
+   pdftoppm -v
+   ```
+
+#### macOS
 
 ```bash
-pip install ocrmypdf pytesseract pillow
+brew install poppler
 ```
 
-### 4. Launch the Application
+#### Linux (Debian/Ubuntu)
+
+```bash
+sudo apt-get install poppler-utils
+```
+
+> **Note**: For other distributions use `sudo dnf install poppler-utils` (Fedora) or `sudo pacman -S poppler` (Arch).
+
+---
+
+### 4. Install Python Dependencies
+
+```bash
+pip install ocrmypdf pytesseract pillow pdf2image
+```
+
+### 5. Launch the Application
 
 ```bash
 python image_to_pdf.py
@@ -127,6 +162,8 @@ python image_to_pdf.py
 
 ## Screenshots
 
+![screenshot.png](screenshot.png)
+
 ### Main Interface
 The application features a clean, intuitive interface:
 - **Folder Selection**: Browse buttons for easy path selection
@@ -134,6 +171,8 @@ The application features a clean, intuitive interface:
 - **Search Fields**: Name and optional year input (Search Mode only)
 - **Processing Log**: Real-time status updates in scrollable text area
 - **Green Start Button**: Initiates processing
+- **Pause Button** (orange): Pauses after the current file; label changes to "Resume" while paused
+- **Stop Button** (red): Stops processing after the current file and shows a completion summary
 
 ### Typical Workflows
 
@@ -144,8 +183,9 @@ The application features a clean, intuitive interface:
 4. Enter student name
 5. (Optional) Enter graduation year for filtering
 6. Click "Start Search"
-7. Monitor progress in log window
-8. Receive success notification when complete
+7. Use **Pause** to suspend between files or **Stop** to cancel early
+8. Review matched files in the preview window and confirm conversion
+9. Receive success notification when complete
 
 **Bulk Convert Mode:**
 1. Select input folder containing images
@@ -153,7 +193,8 @@ The application features a clean, intuitive interface:
 3. Select "Bulk Convert Mode"
 4. Click "Start Search"
 5. Monitor progress in log window (shows X/total count)
-6. Receive summary dialog when complete
+6. Use **Pause** to suspend or **Stop** to cancel early — a summary of what was converted is always shown
+7. Receive summary dialog when complete
 
 ## Configuration
 
@@ -195,7 +236,9 @@ Use the radio buttons to select your mode:
 - **Year (Optional)**: Enter a graduation year (e.g., "98") to filter results. Leave blank to skip year filtering.
 
 #### 4. Start Processing
-Click the green **"Start Search"** button to begin.
+Click the green **"Start Search"** button to begin. Once running, two additional buttons become available:
+- **Pause** (orange) — suspends processing after the current file finishes. The button label changes to **Resume**; click again to continue.
+- **Stop** (red) — signals the worker to stop after the current file. A summary dialog will appear showing how many files were processed.
 
 #### 5. Monitor Progress
 The Processing Log window shows real-time status.
@@ -214,14 +257,18 @@ No exact matches found. Trying partial match...
 Scanning 86 file(s) for partial matches...
   Scanning 1/86: scan_001.jpg
   Scanning 2/86: scan_002.jpg
-  ✓ Partial match found: scan_002.jpg
+  ~ 1/2 keyword(s) matched: scan_002.jpg
+  Scanning 3/86: scan_003.jpg
+  ~ 2/2 keyword(s) matched: scan_003.jpg
 ...
+  ✓ Best match: 2/2 keyword(s) — 1 file(s)
 Filtering by year: 98
-Found 1 matching file(s).
-Converting scan_002.jpg to PDF...
+Found 1 matching file(s). Opening preview...
+[Preview window opens — user confirms selection]
+Converting scan_003.jpg to PDF...
   📄 Generated filename: Smith_John_Transcript_March_3_1975.pdf
 ✓ Successfully converted to: Smith_John_Transcript_March_3_1975.pdf
-Search and conversion complete!
+Conversion complete — 1 file(s) converted.
 ```
 
 **Bulk Convert Mode example:**
@@ -241,9 +288,14 @@ Converting: scan_003.jpg
   ⚠ Could not detect document type — using original filename.
   ✓ Success (3/42)
 ...
+⏸ Paused — click Resume to continue.
+▶ Resumed.
+...
+⏹ Stop requested — finishing current file...
+⏹ Stopped by user.
 ==================================================
-Bulk conversion complete!
-Successfully converted: 42/42
+Bulk conversion stopped by user.
+Successfully converted: 12/42
 Errors: 0
 ==================================================
 ```
@@ -263,8 +315,9 @@ The application searches for the exact name you entered in image text (via OCR).
 **Automatic Fallback:**
 If no exact match is found, it automatically tries partial matching:
 - Splits your search into keywords (e.g., "John Smith" → ["John", "Smith"])
-- Finds documents containing at least 50% of the keywords
-- Example: A document with only "John" would match
+- Scores every file by how many keywords appear in the name region
+- Returns only the file(s) with the **highest keyword count** — all ties are kept and shown in the preview
+- Example: if two files each match 2 out of 3 keywords and no file matches all 3, both are returned
 
 **Year Filtering:**
 If you enter a year, matched files are filtered to only those containing that year in their text.
@@ -303,15 +356,21 @@ The application uses a **class-based tkinter GUI** with the following structure:
 ImageToPDFApp (Main Class)
 ├── __init__()              # Initialize window and variables
 ├── create_widgets()        # Build GUI interface
+├── toggle_pause()          # Pause or resume processing
+├── request_stop()          # Signal worker thread to stop after current file
+├── _check_pause_stop()     # Called between files; blocks while paused, returns True if stopped
+├── _reset_buttons()        # Re-enable Start and disable Pause/Stop
 ├── toggle_mode()           # Show/hide search fields based on mode
 ├── browse_input()          # Handle input folder selection
 ├── browse_output()         # Handle output folder selection
 ├── start_search()          # Validate inputs and start thread
 ├── do_search()             # Route to correct mode (runs in thread)
 ├── search_mode()           # Search Mode workflow
+├── show_preview_window()   # Preview matched files before converting
 ├── bulk_convert_mode()     # Bulk Convert Mode workflow
-├── search_folders()        # Exact text match via OCR
-├── search_fallback()       # Partial keyword matching
+├── open_as_image()         # Open image or PDF first page as PIL Image
+├── search_folders()        # Exact text match via OCR (name region only)
+├── search_fallback()       # Partial keyword matching (name region only, best-count wins)
 ├── search_images()         # Filter by year
 ├── generate_filename()     # Extract fields from OCR text and build filename
 ├── convert_image()         # Convert single image to searchable PDF
@@ -349,29 +408,31 @@ If any field cannot be extracted, a warning is logged and the original scanned f
 
 1. **User Input**: User enters name and optional year via GUI fields
 2. **Validation**: System checks all required fields are filled
-3. **Threading**: Search runs in background thread (GUI stays responsive)
-4. **OCR Processing**: Each image is processed with Tesseract OCR
-5. **Text Matching**: Extracted text is compared against search criteria
-6. **Fallback**: If no exact match, automatically tries partial matching
+3. **Threading**: Search runs in background thread (GUI stays responsive); Pause and Stop buttons become active
+4. **OCR Processing**: The name region of each file is processed with Tesseract OCR (faster and more precise than full-page OCR)
+5. **Text Matching**: Extracted name text is compared against search criteria
+6. **Fallback**: If no exact match, automatically tries partial matching — returns the file(s) with the most keyword hits
 7. **Filtering**: Optional year filter applied if provided
-8. **Conversion**: First matched file converted to PDF with OCRmyPDF
-9. **Notification**: User notified of success/failure
+8. **Preview**: Matched files displayed as thumbnails in a preview window — user selects which to convert
+9. **Conversion**: Selected file(s) converted to PDF with OCRmyPDF
+10. **Notification**: User notified of success/failure
 
 ### Bulk Convert Mode Workflow
 
 1. **Validation**: System checks input and output folders are provided
 2. **File Discovery**: Recursively counts all valid image files in input folder
-3. **Threading**: Conversion runs in background thread (GUI stays responsive)
-4. **Batch Conversion**: Each image converted to searchable PDF with OCRmyPDF
+3. **Threading**: Conversion runs in background thread (GUI stays responsive); Pause and Stop buttons become active
+4. **Batch Conversion**: Each image converted to searchable PDF with OCRmyPDF; pause/stop is checked between every file
 5. **Progress Tracking**: Log shows per-file results and running count (X/total)
 6. **Error Handling**: Individual file errors are logged; processing continues
-7. **Summary**: Completion dialog reports total converted and error count
+7. **Early Stop**: If stopped by user, summary reports how many files completed before stopping
+8. **Summary**: Completion dialog reports total converted and error count
 
 ### Technical Details
 
 - **OCR Engine**: Tesseract (via pytesseract) extracts text from images
 - **PDF Creation**: OCRmyPDF creates searchable PDFs with deskewing and forced OCR
-- **Threading**: `threading.Thread` prevents GUI freezing during processing
+- **Threading**: `threading.Thread` prevents GUI freezing during processing; `threading.Event` objects (`_pause_event`, `_stop_event`) coordinate pause and stop signals between the GUI and worker thread
 - **File Handling**: `pathlib.Path` for cross-platform path management
 - **Error Handling**: Try-except blocks catch and log errors gracefully
 
@@ -386,9 +447,10 @@ If any field cannot be extracted, a warning is logged and the original scanned f
 ## Output
 
 ### Search Mode — Success
-- **Searchable PDF**: First matched document saved to output folder with original filename + `.pdf`
+- **Preview Window**: All matched files shown as thumbnails with checkboxes; user selects which to convert
+- **Searchable PDFs**: Selected document(s) saved to output folder with auto-generated structured filenames
 - **Log Messages**: Real-time progress shown in GUI log window
-- **Success Dialog**: Pop-up notification confirms completion
+- **Success Dialog**: Pop-up notification confirms how many files were converted
 
 ### Bulk Convert Mode — Success
 - **Searchable PDFs**: All converted documents saved to output folder with auto-generated structured filenames (falls back to original filename if document type cannot be detected)
@@ -398,6 +460,11 @@ If any field cannot be extracted, a warning is logged and the original scanned f
 ### No Matches Case (Search Mode)
 - **Informational Dialog**: "No matching files found" message
 - **Log Details**: Shows search attempts and why no matches were found
+
+### Stopped by User
+- **Log Message**: `⏹ Stopped by user.` appears in the log
+- **Summary Dialog**: Reports how many files were converted before stopping
+- **Start Button**: Re-enabled immediately so a new operation can begin
 
 ### Error Case
 - **Error Dialog**: Specific error message displayed
@@ -442,6 +509,7 @@ All processing is performed **entirely locally on your machine**. No files, text
 | Tesseract OCR | None | None — fully offline |
 | OCRmyPDF | None | None — fully offline |
 | Pillow | None | None — fully offline |
+| pdf2image / Poppler | None | None — fully offline |
 | tkinter | None | None — fully offline |
 
 This makes the tool suitable for handling sensitive documents such as university transcripts and degrees, where student records should remain confidential and within your institution's systems.
@@ -453,11 +521,10 @@ This makes the tool suitable for handling sensitive documents such as university
 - **OCR Accuracy**: Depends on image quality, text clarity, and scan resolution
 - **Processing Speed**: Large directories or high-resolution images can be slow
 - **Network Drives**: May be slower than local storage; consider copying files locally first
-- **Partial Match Threshold**: Fixed at 50% of keywords (not user-configurable in GUI)
-- **Search Mode converts first match only**: Only the first matched file is converted; subsequent matches are ignored
+- **Search OCR Region**: Name search targets a fixed crop region `(337, 203, 727, 261)` — documents with a different layout may not match correctly
 - **Filename generation accuracy**: Auto-naming relies on OCR quality — poor scans may fall back to the original filename
 - **Year Format**: Searches for year as a text string in OCR output; works with both 2-digit and 4-digit years depending on what appears in the document
-- **GUI Responsiveness**: During OCR processing, only log updates; button disabled until complete
+- **GUI Responsiveness**: During OCR processing, only log updates; Start button disabled until complete; Pause and Stop active during processing
 - **Memory Usage**: Processing very large images may consume significant RAM
 - **Bulk Output Folder**: All converted files written to a flat output folder (subdirectory structure not preserved)
 
@@ -465,6 +532,7 @@ This makes the tool suitable for handling sensitive documents such as university
 
 ### GUI Won't Open
 **Symptom**: Double-clicking does nothing or window appears then closes
+
 **Solutions**:
 - Run from terminal to see error messages: `python image_to_pdf.py`
 - Check Python version (requires 3.7+)
@@ -472,6 +540,7 @@ This makes the tool suitable for handling sensitive documents such as university
 
 ### "Tesseract not found" Error
 **Symptom**: `TesseractNotFoundError` when clicking "Start Search"
+
 **Solutions**:
 - Ensure Tesseract OCR is installed — see the [Installation](#installation) section for your OS
 - Open a terminal and run `tesseract --version` to confirm it's on your PATH
@@ -483,6 +552,7 @@ This makes the tool suitable for handling sensitive documents such as university
 
 ### OCRmyPDF Errors
 **Symptom**: PDF conversion fails
+
 **Solutions**:
 - Install Ghostscript (required by OCRmyPDF)
 - Check output folder is writable
@@ -491,6 +561,7 @@ This makes the tool suitable for handling sensitive documents such as university
 
 ### No Matches Found (Search Mode)
 **Symptom**: "No matching files found" message
+
 **Solutions**:
 - Verify image quality is clear enough for OCR
 - Check spelling of search name
@@ -500,6 +571,7 @@ This makes the tool suitable for handling sensitive documents such as university
 
 ### GUI Freezes
 **Symptom**: Window becomes unresponsive
+
 **Solutions**:
 - Wait - processing may take time for large folders
 - Check log window for progress updates
@@ -508,6 +580,7 @@ This makes the tool suitable for handling sensitive documents such as university
 
 ### Browse Button Not Working
 **Symptom**: Clicking Browse does nothing
+
 **Solutions**:
 - Check file system permissions
 - Try running as administrator (Windows)
@@ -515,6 +588,7 @@ This makes the tool suitable for handling sensitive documents such as university
 
 ### Output PDF is Empty or Corrupted
 **Symptom**: PDF created but contains no content
+
 **Solutions**:
 - Check original image contains readable text
 - Verify image file isn't corrupted
@@ -530,8 +604,9 @@ Potential improvements for future versions:
 - **Theme Selection**: Light/dark mode options
 - **Progress Bar**: Visual progress indicator during bulk conversion
 - **Drag & Drop**: Drop files directly into window
-- **Multi-file Conversion**: Convert all matched files in Search Mode (not just the first)
-- **Preview Pane**: Show thumbnail of found images before converting
+- ~~**Pause/Stop Controls**: Ability to pause or cancel processing mid-run~~ ✅ Implemented
+- ~~**Multi-file Conversion**: Convert all matched files in Search Mode~~ ✅ Implemented
+- ~~**Preview Pane**: Show thumbnail of found images before converting~~ ✅ Implemented
 
 ### Functionality
 - **Advanced Search**: Search by multiple criteria (name AND date range)
@@ -595,3 +670,5 @@ Project Link: [https://github.com/becktorrescoding/image_to_pdf](https://github.
 - [OCRmyPDF](https://github.com/ocrmypdf/OCRmyPDF) - PDF conversion tool
 - [pytesseract](https://github.com/madmaze/pytesseract) - Python wrapper for Tesseract
 - [Pillow](https://python-pillow.org/) - Python imaging library
+- [pdf2image](https://github.com/Belval/pdf2image) - PDF page rendering for search
+- [Poppler](https://poppler.freedesktop.org/) - PDF rendering engine
