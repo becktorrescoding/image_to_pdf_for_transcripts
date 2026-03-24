@@ -258,11 +258,7 @@ class ImageToPDFApp:
         year = self.search_year.get()
 
         self.log(f"Searching for {name}")
-        matched_files = self.search_fallback(input_folder, name)
-
-        if not matched_files:
-            self.log("No exact matches found. Trying partial match...")
-            matched_files = self.search_fallback(input_folder, name)
+        matched_files = self.search_folders(input_folder, name)
 
         if year and matched_files:
             self.log(f"Filtering by year: {year}")
@@ -484,7 +480,7 @@ class ImageToPDFApp:
             return pages[0]
         return Image.open(file_path)
 
-    def search_fallback(self, folder_path, search_for):
+    def search_folders(self, folder_path, search_for):
         """Partial keyword matching — returns file(s) with the most keyword hits (ties kept)."""
         keywords = search_for.split()
         scores = {}  # img_path -> matched keyword count
