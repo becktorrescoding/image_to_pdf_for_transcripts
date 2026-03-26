@@ -105,8 +105,6 @@ def check_dependencies():
 
 check_dependencies()
 
-# ── Main imports (safe after dependency check) ────────────────────────────────
-
 import os
 import re
 import ocrmypdf
