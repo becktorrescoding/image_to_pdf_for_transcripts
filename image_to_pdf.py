@@ -423,10 +423,11 @@ class ImageToPDFApp:
 
                         # Extract text and generate structured filename
                         img = Image.open(img_path)
-                        name = pytesseract.image_to_string(img.crop((337, 203, 727, 261)))
-                        date = pytesseract.image_to_string(img.crop((1446, 335, 1817, 596)))
-                        degree = pytesseract.image_to_string(img.crop((1049, 464, 1600, 548)))
-                        output_stem = self.generate_filename(name, date, degree, img_path.stem)
+                        name = pytesseract.image_to_string(img.crop((337,  203,  2000, 261)))
+                        admission_date = pytesseract.image_to_string(img.crop((1491, 275,  1941, 410)))
+                        graduation_date = pytesseract.image_to_string(img.crop((1586, 417,  1939, 542)))
+                        degree = pytesseract.image_to_string(img.crop((318,  393,  1600, 591)))
+                        output_stem = self.generate_filename(name, admission_date, graduation_date, degree, img_path.stem)
                         output_file = output_folder / f"{output_stem}.pdf"
 
                         # Avoid overwriting existing files
@@ -626,48 +627,49 @@ class ImageToPDFApp:
         self.log(f"  ✓ Best match: {best}/{len(keywords)} keyword(s) — {len(partial_matched_files)} file(s)")
         return partial_matched_files
 
-    def generate_filename(self, name, date, degree, fallback_stem):
+    def generate_filename(self, name_text, admission_text, graduation_text, degree_text, fallback_stem):
         """
-        Generate a structured filename from OCR text.
+        Generate a structured filename and determine the output subdirectory.
 
-        Degree format:    LastName_FirstName_MI_Degree_DateOfGraduation
-        Transcript format: LastName_FirstName_MI_Transcript_DateOfAdmission
+        Returns (filename_stem, subfolder) where subfolder is one of:
+          "Degrees/<year>", "Transcripts/<year>", or "Unprocessed"
 
-        Falls back to original filename if fields cannot be extracted.
+        Resolved filename format (Degrees and Transcripts):
+          LastName_FirstName_MI_CourseName_Month_DD_YYYY
+
+        Unprocessed filename format (date could not be extracted):
+          Last, First MI CourseName
+
+        Falls back to (original_stem, "Unprocessed") if name/course cannot
+        be extracted at all.
         """
 
         def clean(value):
-            """Remove characters that are invalid in filenames."""
-            return re.sub(r'[\\/*?:"<>|,]', '', value).strip()
+            """Remove characters invalid in filenames (comma is intentional in this format)."""
+            return re.sub(r'[\\/*?:"<>|]', '', value).strip()
 
         # --- Detect document type ---
-        is_degree = bool(re.search(r'degree\s+received', degree, re.IGNORECASE))
-        is_transcript = bool(re.search(r'date\s+of\s+admission', date, re.IGNORECASE))
-
-        if not is_degree and not is_transcript:
-            self.log(f"  ⚠ Could not detect document type — using original filename.")
-            return fallback_stem
-
-        doc_type = "Degree" if is_degree else "Transcript"
+        is_degree     = bool(re.search(r'graduated\s+received',    degree_text,    re.IGNORECASE))
+        is_transcript = bool(re.search(r'date\s+of\s+admission', admission_text, re.IGNORECASE))
+        doc_folder    = "Degrees" if is_degree else ("Transcripts" if is_transcript else None)
 
         # --- Extract name ---
-        # Tries "Last, First MI" format first, then "First MI Last"
         last, first, middle = "", "", ""
 
         # Format 1: Last, First [MI]
         name_match = re.search(
             r'\b([A-Z][a-zA-Z\'\-]+),\s+([A-Z][a-zA-Z\'\-]+)(?:\s+([A-Z])\.?)?',
-            name
+            name_text
         )
         if name_match:
-            last  = name_match.group(1)
-            first = name_match.group(2)
+            last   = name_match.group(1)
+            first  = name_match.group(2)
             middle = name_match.group(3) or ""
         else:
             # Format 2: First [MI] Last
             name_match = re.search(
                 r'\b([A-Z][a-zA-Z\'\-]+)(?:\s+([A-Z])\.?)?\s+([A-Z][a-zA-Z\'\-]+)\b',
-                name
+                name_text
             )
             if name_match:
                 first  = name_match.group(1)
@@ -675,24 +677,22 @@ class ImageToPDFApp:
                 last   = name_match.group(3)
 
         if not last or not first:
-            self.log(f"  ⚠ Could not extract name — using original filename.")
-            return fallback_stem
+            self.log(f"  ⚠ Could not extract name — sending to Unprocessed.")
+            return fallback_stem, "Unprocessed"
 
-        # --- Extract degree (only for degree documents) ---
-        degree_name = ""
-        if is_degree:
-            degree_match = re.search(
-                r'degree\s+received[:\s]+([A-Za-z\s]+?)(?:\n|$)',
-                degree,
-                re.IGNORECASE
-            )
-            if degree_match:
-                degree_name = clean(degree_match.group(1)).replace(" ", "_")
-            else:
-                self.log(f"  ⚠ Could not extract degree name.")
+        # --- Extract course/degree name (always, regardless of doc type) ---
+        course_name = ""
+        course_match = re.search(
+            r'degree\s+received[:\s]+([A-Za-z\s]+?)(?:\n|$)',
+            degree_text,
+            re.IGNORECASE
+        )
+        if course_match:
+            course_name = clean(course_match.group(1)).strip()
+        else:
+            self.log(f"  ⚠ Could not extract course name.")
 
         # --- Extract date ---
-        # Matches "June 12, 1979", "Jun 12 1979", "06/12/79", "06/12/1979"
         MONTH_NAME = (
             r'(?:January|February|March|April|May|June|July|August|'
             r'September|October|November|December|'
@@ -709,80 +709,98 @@ class ImageToPDFApp:
         }
 
         def normalise_date(raw):
-            """Convert any matched date string to Month_DD_YYYY."""
+            """Convert any matched date string to (Month_DD_YYYY, YYYY)."""
             raw = raw.strip()
-            # Numeric format: mm/dd/yy or mm/dd/yyyy
             numeric = re.match(r'(\d{1,2})/(\d{1,2})/(\d{2,4})$', raw)
             if numeric:
                 month_num, day, year = int(numeric.group(1)), numeric.group(2), numeric.group(3)
                 if len(year) == 2:
                     year = '19' + year if int(year) >= 20 else '20' + year
                 month_name = list(MONTH_MAP.values())[month_num - 1]
-                return f"{month_name}_{day}_{year}"
-            # Named format: "June 12, 1979" or "Jun 12 1979"
+                return f"{month_name}_{day}_{year}", year
             parts = raw.replace(',', '').split()
             if len(parts) == 3:
                 month_abbr = parts[0][:3].lower()
                 month_name = MONTH_MAP.get(month_abbr, parts[0])
-                return f"{month_name}_{parts[1]}_{parts[2]}"
-            return clean(raw).replace(' ', '_')
+                year = parts[2]
+                if len(year) == 2:
+                    year = '19' + year if int(year) >= 20 else '20' + year
+                return f"{month_name}_{parts[1]}_{year}", year
+            return clean(raw).replace(' ', '_'), ""
 
-        date = ""
+        date_str, year_str = "", ""
         if is_degree:
-            # Date of graduation appears to the right of the degree on the same line
+            # Degrees: use date of graduation crop
             date_match = re.search(
-                r'degree\s+received[^\n]*?(' + DATE_NAMED + r'|' + DATE_NUMERIC + r')',
-                date,
-                re.IGNORECASE
+                DATE_NAMED + r'|' + DATE_NUMERIC,
+                graduation_text, re.IGNORECASE
             )
         else:
-            # Date of admission appears under "Date of Admission" label
+            # Transcripts: use date of admission crop
             date_match = re.search(
-                r'date\s+of\s+admission[:\s]+(' + DATE_NAMED + r'|' + DATE_NUMERIC + r')',
-                date,
-                re.IGNORECASE
+                DATE_NAMED + r'|' + DATE_NUMERIC,
+                admission_text, re.IGNORECASE
             )
 
         if date_match:
-            date = normalise_date(date_match.group(1))
+            date_str, year_str = normalise_date(date_match.group(0))
         else:
             self.log(f"  ⚠ Could not extract date.")
 
-        # --- Assemble filename ---
-        parts = [last, first]
+        # --- Determine subfolder ---
+        # Only route to Unprocessed if doc type OR course name couldn't be determined.
+        # Missing date is acceptable — file still goes to Degrees/Transcripts without it.
+        if not doc_folder or not course_name:
+            name_part = f"{last}, {first}"
+            if middle:
+                name_part += f" {middle}"
+            unprocessed_name = f"{name_part} {course_name}".strip() if course_name else name_part
+            self.log(f"  📄 Unprocessed filename: {unprocessed_name}.pdf")
+            return unprocessed_name, "Unprocessed"
+
+        subfolder = f"{doc_folder}/{year_str}" if year_str else f"{doc_folder}/{doc_folder} - No Date"
+
+        # --- Assemble resolved filename ---
+        # Format: "Last, First MI CourseName Date" (date optional)
+        name_part = f"{last}, {first}"
         if middle:
-            parts.append(middle)
-        if is_degree and degree_name:
-            parts.append(degree_name)
-        else:
-            parts.append(doc_type)
-        if date:
-            parts.append(date)
+            name_part += f" {middle}"
+        parts = [name_part]
+        if course_name:
+            parts.append(course_name)
+        if date_str:
+            parts.append(date_str.replace("_", " "))
 
         filename = " ".join(clean(p) for p in parts)
-        self.log(f"  📄 Generated filename: {filename}.pdf")
-        return filename
+        self.log(f"  📄 Generated filename: {filename}.pdf → {subfolder}/")
+        return filename, subfolder
 
     def convert_image(self, image_path):
-        """Convert single image to PDF with auto-generated filename."""
+        """Convert single image to PDF, routing to the correct output subfolder."""
         try:
             img_path = Path(image_path)
-            output_folder = Path(self.output_path.get())
+            base_output = Path(self.output_path.get())
 
             self.log(f"Converting {img_path.name} to PDF...")
 
-            # Extract text and generate filename
-            img = Image.open(img_path)
-            name = pytesseract.image_to_string(img.crop((337, 203, 727, 261)))
-            date = pytesseract.image_to_string(img.crop((1446, 335, 1817, 596)))
-            degree = pytesseract.image_to_string(img.crop((1049, 464, 1600, 548)))
-            output_stem = self.generate_filename(name, date, degree, img_path.stem)
-            output_file = output_folder / f"{output_stem}.pdf"
+            img = self.open_as_image(img_path)
+            name_text       = pytesseract.image_to_string(img.crop((337,  203,  2000, 261)))
+            admission_text  = pytesseract.image_to_string(img.crop((1491, 275,  1941, 410)))
+            graduation_text = pytesseract.image_to_string(img.crop((1586, 417,  1939, 542)))
+            degree_text     = pytesseract.image_to_string(img.crop((318,  393,  1600, 591)))
+
+            output_stem, subfolder = self.generate_filename(
+                name_text, admission_text, graduation_text, degree_text, img_path.stem
+            )
+
+            output_dir = base_output / subfolder
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_file = output_dir / f"{output_stem}.pdf"
 
             # Avoid overwriting existing files
             counter = 1
             while output_file.exists():
-                output_file = output_folder / f"{output_stem}_{counter}.pdf"
+                output_file = output_dir / f"{output_stem}_{counter}.pdf"
                 counter += 1
 
             ocrmypdf.ocr(
@@ -793,7 +811,7 @@ class ImageToPDFApp:
                 output_type="pdf"
             )
 
-            self.log(f"✓ Successfully converted to: {output_file.name}")
+            self.log(f"✓ Saved to: {subfolder}/{output_file.name}")
 
         except Exception as e:
             self.log(f"✗ Error converting {image_path}: {e}")
