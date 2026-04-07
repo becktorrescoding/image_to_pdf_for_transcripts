@@ -163,17 +163,17 @@ class ImageToPDFApp:
         tk.Button(path_frame, text="Browse", command=self.browse_output).grid(row=1, column=2)
 
         # Mode Selection
-        mode_frame = tk.LabelFrame(
+        self.mode_frame = tk.LabelFrame(
             self.root,
             text="Operation Mode",
             font=("Arial", 10, "bold"),
             padx=10,
             pady=10
         )
-        mode_frame.pack(fill="x", padx=20, pady=(0, 10))
+        self.mode_frame.pack(fill="x", padx=20, pady=(0, 10))
 
         tk.Radiobutton(
-            mode_frame,
+            self.mode_frame,
             text="Search Mode - Find specific documents by name",
             variable=self.mode,
             value="search",
@@ -182,7 +182,7 @@ class ImageToPDFApp:
         ).pack(anchor="w", pady=3)
 
         tk.Radiobutton(
-            mode_frame,
+            self.mode_frame,
             text="Bulk Convert Mode - Convert all images to PDFs",
             variable=self.mode,
             value="bulk",
@@ -291,7 +291,7 @@ class ImageToPDFApp:
         if self.mode.get() == "bulk":
             self.search_frame.pack_forget()
         else:
-            self.search_frame.pack(fill="x", padx=20, pady=10, before=self.start_button)
+            self.search_frame.pack(fill="x", padx=20, pady=10, after=self.mode_frame)
 
     def log(self, message):
         self.log_text.insert(tk.END, f"{message}\n")
